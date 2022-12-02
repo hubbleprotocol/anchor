@@ -10,6 +10,7 @@ pub fn create<'info>(ctx: CpiContext<'_, '_, '_, 'info, Create<'info>>) -> Resul
         ctx.accounts.payer.key,
         ctx.accounts.authority.key,
         ctx.accounts.mint.key,
+        &spl_token::ID,
     );
     solana_program::program::invoke_signed(
         &ix,
