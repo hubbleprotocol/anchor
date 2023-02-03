@@ -7,6 +7,8 @@ pub mod boxed;
 #[doc(hidden)]
 #[allow(deprecated)]
 pub mod cpi_account;
+pub mod interface;
+pub mod interface_account;
 #[doc(hidden)]
 #[allow(deprecated)]
 pub mod loader;

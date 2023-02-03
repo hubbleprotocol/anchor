@@ -257,7 +257,8 @@ impl Field {
             Ty::SystemAccount => quote! {
                 SystemAccount
             },
-            Ty::Account(AccountTy { boxed, .. }) => {
+            Ty::Account(AccountTy { boxed, .. })
+            | Ty::InterfaceAccount(InterfaceAccountTy { boxed, .. }) => {
                 if *boxed {
                     quote! {
                         Box<#container_ty<#account_ty>>
@@ -326,7 +327,8 @@ impl Field {
             Ty::UncheckedAccount => {
                 quote! { UncheckedAccount::try_from(#field.to_account_info()) }
             }
-            Ty::Account(AccountTy { boxed, .. }) => {
+            Ty::Account(AccountTy { boxed, .. })
+            | Ty::InterfaceAccount(InterfaceAccountTy { boxed, .. }) => {
                 let stream = if checked {
                     quote! {
                         match #container_ty::try_from(&#field) {
@@ -423,6 +425,10 @@ impl Field {
             },
             Ty::Sysvar(_) => quote! { anchor_lang::accounts::sysvar::Sysvar },
             Ty::Program(_) => quote! { anchor_lang::accounts::program::Program },
+            Ty::Interface(_) => quote! { anchor_lang::accounts::interface::Interface },
+            Ty::InterfaceAccount(_) => {
+                quote! { anchor_lang::accounts::interface_account::InterfaceAccount }
+            }
             Ty::AccountInfo => quote! {},
             Ty::UncheckedAccount => quote! {},
             Ty::Signer => quote! {},
@@ -456,6 +462,12 @@ impl Field {
                 }
             }
             Ty::Account(ty) => {
+                let ident = &ty.account_type_path;
+                quote! {
+                    #ident
+                }
+            }
+            Ty::InterfaceAccount(ty) => {
                 let ident = &ty.account_type_path;
                 quote! {
                     #ident
@@ -497,6 +509,12 @@ impl Field {
                     #program
                 }
             }
+            Ty::Interface(ty) => {
+                let program = &ty.account_type_path;
+                quote! {
+                    #program
+                }
+            }
         }
     }
 }
@@ -523,6 +541,8 @@ pub enum Ty {
     Sysvar(SysvarTy),
     Account(AccountTy),
     Program(ProgramTy),
+    Interface(InterfaceTy),
+    InterfaceAccount(InterfaceAccountTy),
     Signer,
     SystemAccount,
     ProgramData,
@@ -575,7 +595,21 @@ pub struct AccountTy {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct InterfaceAccountTy {
+    // The struct type of the account.
+    pub account_type_path: TypePath,
+    // True if the account has been boxed via `Box<T>`.
+    pub boxed: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct ProgramTy {
+    // The struct type of the account.
+    pub account_type_path: TypePath,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InterfaceTy {
     // The struct type of the account.
     pub account_type_path: TypePath,
 }
@@ -836,6 +870,9 @@ pub struct ConstraintSpace {
 #[allow(clippy::large_enum_variant)]
 pub enum InitKind {
     Program {
+        owner: Option<Expr>,
+    },
+    Interface {
         owner: Option<Expr>,
     },
     // Owner for token and mint represents the authority. Not to be confused
