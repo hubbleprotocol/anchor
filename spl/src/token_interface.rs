@@ -1,5 +1,10 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
+use solana_program::program_pack::Pack;
 use std::ops::Deref;
+
+impl Mint {
+    pub const LEN: usize = spl_token_2022::state::Mint::LEN;
+}
 
 static IDS: [Pubkey; 2] = [spl_token::ID, spl_token_2022::ID];
 

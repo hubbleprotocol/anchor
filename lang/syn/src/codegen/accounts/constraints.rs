@@ -710,7 +710,7 @@ fn generate_constraint_init_group(
 
             let create_account = generate_create_account(
                 field,
-                quote! {anchor_spl::token_2022::Mint::LEN},
+                quote! {anchor_spl::token_interface::Mint::LEN},
                 quote! {&#token_program.key()},
                 quote! {#payer},
                 seeds_with_bump,
@@ -1109,10 +1109,10 @@ impl<'a> OptionalCheckScope<'a> {
 
 fn generate_get_token_account_space(mint: &Expr) -> proc_macro2::TokenStream {
     quote! {
-        let mint_info = #mint.to_account_info();
-        if mint_info.owner == anchor_spl::token_2022::Token2022::id() {
+        if #mint.to_account_info().owner == &anchor_spl::token_2022::ID {
             use anchor_spl::token_2022::spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
             use anchor_spl::token_2022::spl_token_2022::state::{Account, Mint};
+            let mint_info = #mint.to_account_info();
             let mint_data = mint_info.try_borrow_data()?;
             let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data)?;
             let mint_extensions = mint_state.get_extension_types()?;
