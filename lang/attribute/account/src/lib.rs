@@ -175,7 +175,7 @@ pub fn account(
                 // This trait is useful for clients deserializing accounts.
                 // It's expected on-chain programs deserialize via zero-copy.
                 #[automatically_derived]
-                impl #impl_gen anchor_lang::AccountDeserialize for #account_name #type_gen #where_clause {
+                impl #impl_gen ::anchor_lang::AccountDeserialize for #account_name #type_gen #where_clause {
                     fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
                         if buf.len() < #discriminator.len() {
                             return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
@@ -204,7 +204,7 @@ pub fn account(
                 #account_strct
 
                 #[automatically_derived]
-                impl #impl_gen anchor_lang::AccountSerialize for #account_name #type_gen #where_clause {
+                impl #impl_gen ::anchor_lang::AccountSerialize for #account_name #type_gen #where_clause {
                     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
                         if writer.write_all(&#discriminator).is_err() {
                             return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
