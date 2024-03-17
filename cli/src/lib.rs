@@ -4523,7 +4523,7 @@ fn prepend_compute_unit_ix(
             0,
             ComputeBudgetInstruction::set_compute_unit_price(priority_fee),
         );
-        Ok(instructions)
+        Ok(instructions_appended)
     } else {
         Ok(instructions)
     }
