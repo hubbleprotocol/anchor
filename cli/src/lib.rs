@@ -2187,6 +2187,9 @@ fn idl_set_buffer(
                     latest_hash,
                 );
 
+                let tx_hash = client.simulate_transaction(&tx)?.value;
+                println!("tx_hash, {:?} ", tx_hash);
+
                 match client.send_and_confirm_transaction_with_spinner(&tx) {
                     Ok(_) => break,
                     Err(e) => {
@@ -2404,7 +2407,7 @@ fn idl_write(
 
     println!("Idl data length: {:?} bytes", idl_data.len());
 
-    const MAX_WRITE_SIZE: usize = 600;
+    const MAX_WRITE_SIZE: usize = 800;
     let mut offset = 0;
     while offset < idl_data.len() {
         println!("Step {offset} ");
@@ -2438,6 +2441,9 @@ fn idl_write(
                 &[&keypair],
                 latest_hash,
             );
+
+            let tx_hash = client.simulate_transaction(&tx)?.value;
+            println!("tx_hash, {:?} ", tx_hash);
 
             match client.send_and_confirm_transaction_with_spinner(&tx) {
                 Ok(_) => break,
