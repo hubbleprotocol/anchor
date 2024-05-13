@@ -2179,7 +2179,7 @@ fn idl_set_buffer(
 
             let mut latest_hash = client.get_latest_blockhash()?;
             // Send the transaction.
-            for retry_transactions in 0..20 {
+            for retries in 0..20 {
                 if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
                     latest_hash = client.get_latest_blockhash()?;
                 }
@@ -2196,7 +2196,7 @@ fn idl_set_buffer(
                 match client.send_and_confirm_transaction_with_spinner(&tx) {
                     Ok(_) => break,
                     Err(e) => {
-                        if retry_transactions == 19 {
+                        if retries == 19 {
                             return Err(anyhow!("Error: {e}. Failed to send transaction."));
                         }
                         println!("Error: {e}. Retrying transaction.");
@@ -2437,7 +2437,7 @@ fn idl_write(
         let instructions = prepend_compute_unit_ix(vec![ix], &client, priority_fee)?;
 
         let mut latest_hash = client.get_latest_blockhash()?;
-        for retry_transactions in 0..20 {
+        for retries in 0..20 {
             if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
                 latest_hash = client.get_latest_blockhash()?;
             }
@@ -2454,7 +2454,7 @@ fn idl_write(
             match client.send_and_confirm_transaction_with_spinner(&tx) {
                 Ok(_) => break,
                 Err(e) => {
-                    if retry_transactions == 19 {
+                    if retries == 19 {
                         return Err(anyhow!("Error: {e}. Failed to send transaction."));
                     }
                     println!("Error: {e}. Retrying transaction.");
@@ -3795,22 +3795,26 @@ fn create_idl_account(
         }
         instructions = prepend_compute_unit_ix(instructions, &client, priority_fee)?;
 
-        println!("Initializing IDL account");
-        let latest_hash = client.get_latest_blockhash()?;
-        for retries in 0..10 {
+        let mut latest_hash = client.get_latest_blockhash()?;
+        for retries in 0..20 {
+            if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
+                latest_hash = client.get_latest_blockhash()?;
+            }
+
             let tx = Transaction::new_signed_with_payer(
                 &instructions,
                 Some(&keypair.pubkey()),
                 &[&keypair],
                 latest_hash,
             );
+
             match client.send_and_confirm_transaction_with_spinner(&tx) {
                 Ok(_) => break,
                 Err(err) => {
-                    if retries == 9 {
-                        return Err(anyhow!("Error initializing IDL account: {}", err));
+                    if retries == 19 {
+                        return Err(anyhow!("Error creating IDL account: {}", err));
                     }
-                    println!("Error initializing IDL account: {}. Retrying...", err);
+                    println!("Error creating IDL account: {}. Retrying...", err);
                 }
             }
         }
@@ -3878,9 +3882,8 @@ fn create_idl_buffer(
         priority_fee,
     )?;
 
-    println!("Creating IDL buffer");
     let mut latest_hash = client.get_latest_blockhash()?;
-    for retries in 0..10 {
+    for retries in 0..20 {
         if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
             latest_hash = client.get_latest_blockhash()?;
         }
@@ -3893,7 +3896,7 @@ fn create_idl_buffer(
         match client.send_and_confirm_transaction_with_spinner(&tx) {
             Ok(_) => break,
             Err(err) => {
-                if retries == 9 {
+                if retries == 19 {
                     return Err(anyhow!("Error creating buffer account: {}", err));
                 }
                 println!("Error creating buffer account: {}. Retrying...", err);
@@ -4537,7 +4540,8 @@ fn get_recommended_micro_lamport_fee(client: &RpcClient, priority_fee: Option<u6
 
     Ok(median_priority_fee)
 }
-
+/// Prepend a compute unit ix, if the priority fee is greater than 0.
+/// This helps to improve the chances that the transaction will land.
 fn prepend_compute_unit_ix(
     instructions: Vec<Instruction>,
     client: &RpcClient,
