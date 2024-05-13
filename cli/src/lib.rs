@@ -2177,9 +2177,12 @@ fn idl_set_buffer(
             // Build the transaction.
             let instructions = prepend_compute_unit_ix(vec![ix], &client, priority_fee)?;
 
+            let mut latest_hash = client.get_latest_blockhash()?;
             // Send the transaction.
             for retry_transactions in 0..20 {
-                let latest_hash = client.get_latest_blockhash()?;
+                if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
+                    latest_hash = client.get_latest_blockhash()?;
+                }
                 let tx = Transaction::new_signed_with_payer(
                     &instructions,
                     Some(&keypair.pubkey()),
@@ -2433,8 +2436,11 @@ fn idl_write(
         // Send transaction.
         let instructions = prepend_compute_unit_ix(vec![ix], &client, priority_fee)?;
 
+        let mut latest_hash = client.get_latest_blockhash()?;
         for retry_transactions in 0..20 {
-            let latest_hash = client.get_latest_blockhash()?;
+            if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
+                latest_hash = client.get_latest_blockhash()?;
+            }
             let tx = Transaction::new_signed_with_payer(
                 &instructions,
                 Some(&keypair.pubkey()),
@@ -3787,16 +3793,27 @@ fn create_idl_account(
                 data,
             });
         }
-        let latest_hash = client.get_latest_blockhash()?;
         instructions = prepend_compute_unit_ix(instructions, &client, priority_fee)?;
 
-        let tx = Transaction::new_signed_with_payer(
-            &instructions,
-            Some(&keypair.pubkey()),
-            &[&keypair],
-            latest_hash,
-        );
-        client.send_and_confirm_transaction_with_spinner(&tx)?;
+        println!("Initializing IDL account");
+        let latest_hash = client.get_latest_blockhash()?;
+        for retries in 0..10 {
+            let tx = Transaction::new_signed_with_payer(
+                &instructions,
+                Some(&keypair.pubkey()),
+                &[&keypair],
+                latest_hash,
+            );
+            match client.send_and_confirm_transaction_with_spinner(&tx) {
+                Ok(_) => break,
+                Err(err) => {
+                    if retries == 9 {
+                        return Err(anyhow!("Error initializing IDL account: {}", err));
+                    }
+                    println!("Error initializing IDL account: {}. Retrying...", err);
+                }
+            }
+        }
     }
 
     // Write directly to the IDL account buffer.
@@ -3824,6 +3841,7 @@ fn create_idl_buffer(
     let client = create_client(url);
 
     let buffer = Keypair::new();
+    println!("Buffer address, {:?} ", buffer.pubkey());
 
     // Creates the new buffer account with the system program.
     let create_account_ix = {
@@ -3860,8 +3878,12 @@ fn create_idl_buffer(
         priority_fee,
     )?;
 
-    for retries in 0..5 {
-        let latest_hash = client.get_latest_blockhash()?;
+    println!("Creating IDL buffer");
+    let mut latest_hash = client.get_latest_blockhash()?;
+    for retries in 0..10 {
+        if !client.is_blockhash_valid(&latest_hash, client.commitment())? {
+            latest_hash = client.get_latest_blockhash()?;
+        }
         let tx = Transaction::new_signed_with_payer(
             &instructions,
             Some(&keypair.pubkey()),
@@ -3871,7 +3893,7 @@ fn create_idl_buffer(
         match client.send_and_confirm_transaction_with_spinner(&tx) {
             Ok(_) => break,
             Err(err) => {
-                if retries == 4 {
+                if retries == 9 {
                     return Err(anyhow!("Error creating buffer account: {}", err));
                 }
                 println!("Error creating buffer account: {}. Retrying...", err);
